@@ -73,7 +73,7 @@
     // ⚠️ IMPORTANTE: MUDE O LINK ABAIXO PARA O ENDEREÇO DO SEU SERVIDOR/BACKEND
     // Exemplo local: "http://192.168.0.10:3001"
     // Exemplo online: "https://meu-backend-api.com"
-    const BACKEND_URL = "display_player.html?departamento=Producao"; 
+    const BACKEND_URL = "?departamento=Producao"; 
 
     // Base da API construída a partir do BACKEND_URL
     const API_BASE_URL = `${BACKEND_URL}/api/display/playlist`;
@@ -308,7 +308,7 @@
 
         if (!department) {
             updateStatus("ERRO DE CONFIGURAÇÃO", 
-                `Por favor, defina o departamento na URL. Ex: display_player.html?departamento=Producao`, 
+                `Por favor, defina o departamento na URL. Ex: ?departamento=Producao`, 
                 true
             );
             return;
@@ -319,4 +319,5 @@
 </script>
 </body>
 </html>
+
 
