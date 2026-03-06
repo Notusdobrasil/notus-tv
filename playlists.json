@@ -1,0 +1,45 @@
+{
+  "Producao": [
+    {
+      "titulo": "conheça nossa fábrica",
+      "tipo_arquivo": "video",
+      "url_midia": "/media_files/1764347813967-CONHECA_NOSSA_FABRICA.mp4",
+      "data_inicio": "2026-01-01T11:36:00.000Z",
+      "data_fim": "2026-12-31T16:36:00.000Z",
+      "ativo": true
+    },
+    {
+      "titulo": "Indique um amigo",
+      "tipo_arquivo": "video",
+      "url_midia": "/media_files/1764349216827-INDIUE_UM_AMIGO.mp4",
+      "data_inicio": "2026-01-01T16:59:00.000Z",
+      "data_fim": "2027-12-31T16:59:00.000Z",
+      "ativo": true
+    },
+    {
+      "titulo": "catalogo Notus",
+      "tipo_arquivo": "video",
+      "url_midia": "/media_files/1764349575456-NOVO_CATALOGO_NOTUS-DO_BRASIL.mp4",
+      "data_inicio": "2026-01-01T11:01:00.000Z",
+      "data_fim": "2026-12-31T17:06:00.000Z",
+      "ativo": true
+    },
+    {
+      "titulo": "Março 3 causas",
+      "tipo_arquivo": "imagem",
+      "url_midia": "/media_files/1772222044732-tv_fabrica_marÃ§o3causas.png",
+      "data_inicio": "2026-03-02T10:00:00.000Z",
+      "data_fim": "2026-03-31T21:00:00.000Z",
+      "ativo": true,
+      "custom_duration_ms": 10000
+    },
+    {
+      "titulo": "Zero Adornos campanha",
+      "tipo_arquivo": "video",
+      "url_midia": "/media_files/1772222182036-Zero_adorno_video_(1).mp4",
+      "data_inicio": "2026-03-02T10:00:00.000Z",
+      "data_fim": "2026-03-31T13:00:00.000Z",
+      "ativo": true
+    }
+  ]
+}
