@@ -6,57 +6,38 @@
     <title>Media Indoor Display</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Define a fonte e garante que o corpo ocupe toda a tela */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden; /* Remove barras de rolagem */
-            background-color: #1f2937; /* Fundo cinza escuro */
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            overflow: hidden;
+            background-color: #1f2937;
         }
-        /* O contêiner de mídia deve centralizar e preencher a tela */
         #media-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            width: 100%; height: 100%;
             position: relative;
         }
-        /* Estilos base para a mídia */
         .media-element {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Garante que a mídia seja visível, sem cortes */
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
             opacity: 0;
             transition: opacity 1s ease-in-out;
             z-index: 1;
         }
-        .media-element.active {
-            opacity: 1;
-            z-index: 2;
-        }
-        .media-element.video {
-            object-fit: cover; /* Vídeos geralmente ficam melhores cobrindo a tela */
-        }
-        
-        /* Estilo para a tela de status/erro */
+        .media-element.active { opacity: 1; z-index: 2; }
+        .media-element.video { object-fit: cover; }
         #status-overlay {
             z-index: 100;
-            background-color: rgba(31, 41, 55, 0.95); /* Fundo com pouca transparência */
+            background-color: rgba(31, 41, 55, 0.95);
         }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
 
-    <div id="media-container">
-        </div>
+    <div id="media-container"></div>
 
     <div id="status-overlay" class="fixed inset-0 flex flex-col justify-center items-center text-center p-8 transition-opacity duration-500">
         <svg id="status-icon" class="animate-spin w-12 h-12 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -68,15 +49,14 @@
         <p class="text-xs text-gray-500 mt-4">Chave do Player: <span id="department-key-display">N/A</span></p>
     </div>
 
-  <script>
-    // --- CONFIGURAÇÃO DE REDE (FIXA PARA O BACKEND) ---
+<script>
+    // --- IMPORTANTE: CONFIGURAÇÃO DE HOSPEDAGEM ---
     
-    // ⚠️ IMPORTANTE: 
-    // Mude 'localhost' para o IP real do computador que é o servidor se for usar em TVs.
-    // Se o backend também estiver na nuvem, coloque a URL da API aqui.
-    const BACKEND_URL = "http://localhost:3001"; 
+    // Se você hospedou o Backend separadamente, coloque a URL dele aqui.
+    // Se a API estiver na mesma URL do player (Vercel Functions), deixe como está.
+    const BACKEND_URL = window.location.origin; 
 
-    // Base da API (Aponta para o seu servidor, não para a Vercel)
+    // Base da API correta para produção
     const API_BASE_URL = `${BACKEND_URL}/api/display/playlist`;
 
     const REFRESH_INTERVAL_MS = 300000; 
@@ -95,21 +75,13 @@
     let intervalId = null;
     let currentElement = null;
 
-    // Garante que fotos e vídeos venham do Servidor
-    function getServerBaseUrl() {
-        return BACKEND_URL;
-    }
-    
-    // --- Funções Auxiliares de Status ---
-
     function updateStatus(title, details, isError = false) {
         statusOverlay.classList.remove('hidden');
         statusTitle.textContent = title;
         statusDetails.textContent = details;
-        
         const icon = document.getElementById('status-icon');
         if (icon) {
-            icon.classList.remove('animate-spin', 'text-blue-500', 'text-red-500', 'text-yellow-500');
+            icon.classList.remove('animate-spin', 'text-blue-500', 'text-red-500');
             if (isError) {
                 icon.classList.add('text-red-500');
                 icon.innerHTML = '<path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>';
@@ -120,67 +92,47 @@
         }
     }
 
-    function hideStatus() {
-        statusOverlay.classList.add('hidden');
-    }
-
-    function getDepartmentFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('departamento');
-    }
-
     async function fetchPlaylist() {
         if (!department) return;
-        
         const fullUrl = `${API_BASE_URL}/${department}`;
-        updateStatus("Buscando Playlist...", `Conectando ao Servidor: ${BACKEND_URL}`);
         
         try {
-            let response = null;
-            // Busca os dados no servidor real
-            response = await fetch(fullUrl, { signal: AbortSignal.timeout(8000) }); 
-
-            if (!response.ok) {
-                throw new Error(`Servidor Offline ou Erro ${response.status}`);
-            }
+            const response = await fetch(fullUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
             const playlistData = data.playlist || data; 
 
             if (playlistData && Array.isArray(playlistData) && playlistData.length > 0) {
                 currentPlaylist = playlistData;
+                statusOverlay.classList.add('hidden');
                 if (!isPlaying) {
                     isPlaying = true;
                     startPlayback();
                 } 
-                hideStatus(); 
             } else {
-                currentPlaylist = [];
-                stopPlayback();
-                updateStatus("Aguardando Mídia", `Nenhuma mídia para: ${department}`, false);
+                updateStatus("Aguardando Mídia", `Nenhuma mídia ativa para ${department}`);
             }
         } catch (error) {
-            stopPlayback();
-            updateStatus("ERRO DE CONEXÃO", 
-                `O Player (Vercel) não conseguiu falar com o Servidor (${BACKEND_URL}). Verifique o IP e o Firewall.`, 
-                true
-            );
+            updateStatus("ERRO NA API", `Não encontramos a rota: ${fullUrl}. Verifique se as Vercel Functions estão ativas.`, true);
         }
     }
 
     function createMediaElement(media) {
         let element;
-        const mediaUrl = getServerBaseUrl() + (media.url_midia.startsWith('/') ? media.url_midia : '/' + media.url_midia);
+        // Ajuste para garantir que a URL da imagem aponte para o backend correto
+        const mediaUrl = media.url_midia.startsWith('http') 
+            ? media.url_midia 
+            : BACKEND_URL + (media.url_midia.startsWith('/') ? media.url_midia : '/' + media.url_midia);
         
         if (media.tipo_arquivo === 'video') {
             element = document.createElement('video');
             element.className = 'media-element video';
-            element.autoplay = true;
             element.muted = true; 
             element.playsInline = true; 
             element.src = mediaUrl; 
             element.onended = playNext;
-            element.onerror = () => { setTimeout(playNext, 100); };
+            element.onerror = () => setTimeout(playNext, 100);
         } else { 
             element = document.createElement('img');
             element.className = 'media-element';
@@ -206,10 +158,9 @@
         setTimeout(() => {
             currentElement.classList.add('active');
             if (media.tipo_arquivo === 'video') {
-                currentElement.play().catch(() => setTimeout(playNext, 5000));
+                currentElement.play().catch(playNext);
             } else {
-                const duration = media.custom_duration_ms || DEFAULT_IMAGE_DURATION_MS;
-                setTimeout(playNext, duration);
+                setTimeout(playNext, media.custom_duration_ms || DEFAULT_IMAGE_DURATION_MS);
             }
         }, 50); 
     }
@@ -221,31 +172,21 @@
     }
 
     function startPlayback() {
-        if (intervalId) clearInterval(intervalId);
         playCurrent();
+        if (intervalId) clearInterval(intervalId);
         intervalId = setInterval(fetchPlaylist, REFRESH_INTERVAL_MS);
     }
 
-    function stopPlayback() {
-        isPlaying = false;
-        if (currentElement) currentElement.remove();
-        currentElement = null;
-        if (intervalId) clearInterval(intervalId);
-    }
-
     window.onload = () => {
-        department = getDepartmentFromURL();
-        departmentKeyDisplay.textContent = department || 'NÃO DEFINIDO';
+        const params = new URLSearchParams(window.location.search);
+        department = params.get('departamento');
+        departmentKeyDisplay.textContent = department || 'N/A';
         if (!department) {
-            updateStatus("ERRO", `Use: ?departamento=Producao na URL`, true);
-            return;
+            updateStatus("ERRO", "Adicione ?departamento=NOME na URL", true);
+        } else {
+            fetchPlaylist();
         }
-        fetchPlaylist();
     };
 </script>
 </body>
 </html>
-
-
-
-
