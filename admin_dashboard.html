@@ -53,7 +53,7 @@
     // --- AJUSTE PARA VERCEL ---
     // Removemos a porta fixa 3001, pois na Vercel o acesso é direto pelo domínio
     const BASE_URL = window.location.origin;
-    const API_BASE_URL = `${BASE_URL}/api/display/playlist`;
+    const API_BASE_URL = `${window.location.origin}/api/display/playlist`;
 
     const REFRESH_INTERVAL_MS = 300000; 
     const DEFAULT_IMAGE_DURATION_MS = 7000; 
@@ -121,4 +121,5 @@
 </script>
 </body>
 </html>
+
 
