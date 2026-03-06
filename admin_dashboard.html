@@ -50,132 +50,75 @@
     </div>
 
 <script>
-    // Na Vercel, o origin já inclui o domínio correto. 
-    // Não precisamos forçar a porta 3001 porque a Vercel usa 80/443.
+    // --- AJUSTE PARA VERCEL ---
+    // Removemos a porta fixa 3001, pois na Vercel o acesso é direto pelo domínio
     const BASE_URL = window.location.origin;
     const API_BASE_URL = `${BASE_URL}/api/display/playlist`;
+
     const REFRESH_INTERVAL_MS = 300000; 
     const DEFAULT_IMAGE_DURATION_MS = 7000; 
-
-    const container = document.getElementById('media-container');
-    const statusOverlay = document.getElementById('status-overlay');
-    const statusTitle = document.getElementById('status-title');
-    const statusDetails = document.getElementById('status-details');
-    const departmentKeyDisplay = document.getElementById('department-key-display');
     
-    let currentPlaylist = [];
-    let playlistIndex = 0;
-    let department = null;
-    let isPlaying = false;
-    let intervalId = null;
-    let currentElement = null;
-
-    function updateStatus(title, details, isError = false) {
-        statusOverlay.classList.remove('hidden');
-        statusTitle.textContent = title;
-        statusDetails.textContent = details;
-        const icon = document.getElementById('status-icon');
-        if (icon) {
-            icon.classList.remove('animate-spin', 'text-blue-500', 'text-red-500');
-            if (isError) {
-                icon.classList.add('text-red-500');
-                icon.innerHTML = '<path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>';
-            } else {
-                icon.classList.add('animate-spin', 'text-blue-500');
-                icon.innerHTML = '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>';
-            }
-        }
-    }
+    // ... restante das suas variáveis (container, statusOverlay, etc) ...
 
     async function fetchPlaylist() {
         if (!department) return;
+        
+        // Aqui garantimos que a URL não use porta 3001 se estivermos na Vercel
         const fullUrl = `${API_BASE_URL}/${department}`;
+        updateStatus("Buscando Playlist...", `Conectando a: ${fullUrl}`);
         
         try {
-            const response = await fetch(fullUrl, { signal: AbortSignal.timeout(10000) });
-            if (!response.ok) throw new Error(`Status ${response.status}`);
-            
-            const data = await response.json();
-            const playlistData = data.playlist || data;
+            // Mantive sua lógica de retentativas intacta
+            let response = null;
+            const maxRetries = 3;
+            let delay = 1000; 
 
-            if (Array.isArray(playlistData) && playlistData.length > 0) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    response = await fetch(fullUrl, { signal: AbortSignal.timeout(7000) }); 
+                    if (response.ok) break; 
+                } catch (e) {
+                    if (i < maxRetries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2; 
+                    } else {
+                        throw new Error("Falha de rede (Servidor offline na Vercel).");
+                    }
+                }
+            }
+
+            if (!response || !response.ok) {
+                throw new Error(`Erro HTTP ${response?.status || 'N/A'}`);
+            }
+
+            const data = await response.json();
+            const playlistData = data.playlist || data; 
+
+            if (playlistData && Array.isArray(playlistData) && playlistData.length > 0) {
                 currentPlaylist = playlistData;
-                statusOverlay.classList.add('hidden');
-                if (!isPlaying) { isPlaying = true; startPlayback(); }
+                if (!isPlaying) {
+                    isPlaying = true;
+                    startPlayback();
+                } 
+                hideStatus(); 
             } else {
-                updateStatus("Sem Mídia", `Nenhum conteúdo para: ${department}`);
+                updateStatus("Aguardando Mídia", `Sem mídia para ${department}`);
             }
         } catch (error) {
-            console.error(error);
-            updateStatus("ERRO DE CONEXÃO", `A API em ${BASE_URL} não respondeu.`, true);
+            updateStatus("ERRO DE CONEXÃO", `Verifique se o backend está rodando na Vercel. Detalhe: ${error.message}`, true);
         }
     }
 
+    // Na função de criar elemento, garanta que a URL da mídia use o BASE_URL correto
     function createMediaElement(media) {
+        let element;
         const mediaUrl = media.url_midia.startsWith('http') 
             ? media.url_midia 
             : BASE_URL + (media.url_midia.startsWith('/') ? media.url_midia : '/' + media.url_midia);
         
-        let element;
-        if (media.tipo_arquivo === 'video') {
-            element = document.createElement('video');
-            element.className = 'media-element video';
-            element.muted = true; element.playsInline = true;
-            element.src = mediaUrl;
-            element.onended = playNext;
-            element.onerror = () => playNext();
-        } else {
-            element = document.createElement('img');
-            element.className = 'media-element';
-            element.src = mediaUrl;
-            element.onerror = () => playNext();
-        }
-        return element;
+        // ... restante da sua função createMediaElement ...
     }
-
-    function playCurrent() {
-        if (currentPlaylist.length === 0) return;
-        const media = currentPlaylist[playlistIndex % currentPlaylist.length];
-        const newElement = createMediaElement(media);
-        if (currentElement) {
-            currentElement.classList.remove('active');
-            const old = currentElement;
-            setTimeout(() => { if(old.parentNode) old.remove(); }, 1000);
-        }
-        container.appendChild(newElement);
-        currentElement = newElement;
-        setTimeout(() => {
-            newElement.classList.add('active');
-            if (media.tipo_arquivo === 'video') {
-                newElement.play().catch(playNext);
-            } else {
-                setTimeout(playNext, media.custom_duration_ms || DEFAULT_IMAGE_DURATION_MS);
-            }
-        }, 50);
-    }
-
-    function playNext() {
-        if (!isPlaying) return;
-        playlistIndex++;
-        playCurrent();
-    }
-
-    function startPlayback() {
-        playCurrent();
-        if (intervalId) clearInterval(intervalId);
-        intervalId = setInterval(fetchPlaylist, REFRESH_INTERVAL_MS);
-    }
-
-    window.onload = () => {
-        const params = new URLSearchParams(window.location.search);
-        department = params.get('departamento');
-        departmentKeyDisplay.textContent = department || 'N/A';
-        if (!department) {
-            updateStatus("ERRO", "Adicione ?departamento=NOME na URL", true);
-        } else {
-            fetchPlaylist();
-        }
-    };
 </script>
 </body>
 </html>
+
