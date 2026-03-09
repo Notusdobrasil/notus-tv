@@ -14,6 +14,10 @@
     {
       "src": "/display_player.html",
       "dest": "display_player.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/server.js"
     }
   ]
 }
