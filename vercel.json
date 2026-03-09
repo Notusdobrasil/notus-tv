@@ -1,23 +1,17 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/display_player.html",
-      "dest": "/display_player.html"
+  "rewrites": [
+    { 
+      "source": "/api/(.*)", 
+      "destination": "/api/server.js" 
     },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/server.js"
+    { 
+      "source": "/display_player.html", 
+      "destination": "/display_player.html" 
     },
-    {
-      "src": "/(.*)",
-      "dest": "/api/server.js"
+    { 
+      "source": "/", 
+      "destination": "/display_player.html" 
     }
   ]
 }
