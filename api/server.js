@@ -6,7 +6,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-// Removido multer diskStorage e fs para evitar erros de leitura na Vercel
 
 const app = express();
 
@@ -30,7 +29,6 @@ const User = mongoose.model('User', new mongoose.Schema({
   role: { type: String, default: 'admin' },
 }, { timestamps: true }));
 
-// Novo Model para Playlist (Substituindo o arquivo JSON)
 const Playlist = mongoose.model('Playlist', new mongoose.Schema({
   department: { type: String, required: true, unique: true },
   items: { type: Array, default: [] }
@@ -41,20 +39,21 @@ const Playlist = mongoose.model('Playlist', new mongoose.Schema({
 // -----------------------------------------------------
 app.use(bodyParser.json());
 
+app.set('trust proxy', 1); // Necessário para cookies em HTTPS na Vercel
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'segredo_dev_local',
-  resave: true, // Mudado para true para garantir que a sessão não morra
+  resave: false, 
   saveUninitialized: false,
   store: MongoStore.create({ 
     mongoUrl: process.env.MONGODB_URI,
-    ttl: 14 * 24 * 60 * 60 // Sessão dura 14 dias no banco
+    ttl: 14 * 24 * 60 * 60 
   }),
-  proxy: true, // IMPORTANTE para a Vercel
   cookie: {
     maxAge: 1000 * 60 * 60 * 8,
     httpOnly: true,
-    secure: true, // Obrigatório na Vercel (HTTPS)
-    sameSite: 'none' // Necessário para evitar bloqueio de cookies em domínios .vercel.app
+    secure: true, 
+    sameSite: 'none'
   },
 }));
 
@@ -66,34 +65,45 @@ function requireAuth(req, res, next) {
   next();
 }
 
-app.post('/api/auth/login', async (req, res) => {
+// Rota para o painel verificar se o usuário está logado
+app.get('/auth/me', async (req, res) => {
+  if (req.session && req.session.userId) {
+    const user = await User.findById(req.session.userId);
+    if (user) return res.json({ name: user.name });
+  }
+  res.status(401).json({ msg: 'Não autenticado' });
+});
+
+app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email?.toLowerCase() });
+  
   if (user && await bcrypt.compare(password, user.password)) {
     req.session.userId = user._id.toString();
-    return res.json({ msg: 'Login ok', user: { name: user.name } });
+    // Salva a sessão manualmente antes de responder para evitar erro de redirecionamento
+    return req.session.save((err) => {
+      if (err) return res.status(500).json({ msg: 'Erro ao salvar sessão' });
+      res.json({ msg: 'Login ok', user: { name: user.name } });
+    });
   }
   res.status(401).json({ msg: 'Credenciais inválidas' });
 });
 
 // -----------------------------------------------------
-// 5. ROTAS DE PLAYLIST (Substituindo FS por MongoDB)
+// 5. ROTAS DE PLAYLIST (Otimizadas para Vercel Rewrites)
 // -----------------------------------------------------
 
-// Lista departamentos
-app.get('/api/admin/departments', requireAuth, async (req, res) => {
+app.get('/admin/departments', requireAuth, async (req, res) => {
   const playlists = await Playlist.find({}, 'department');
   res.json(playlists.map(p => p.department));
 });
 
-// Obtém playlist
-app.get('/api/admin/playlist/:department', requireAuth, async (req, res) => {
+app.get('/admin/playlist/:department', requireAuth, async (req, res) => {
   const doc = await Playlist.findOne({ department: req.params.department });
   res.json(doc ? doc.items : []);
 });
 
-// Salva playlist
-app.post('/api/admin/playlist/:department', requireAuth, async (req, res) => {
+app.post('/admin/playlist/:department', requireAuth, async (req, res) => {
   const { department } = req.params;
   const items = req.body;
   
@@ -106,18 +116,15 @@ app.post('/api/admin/playlist/:department', requireAuth, async (req, res) => {
   res.json({ message: 'Playlist salva no MongoDB!' });
 });
 
-// ROTA DO DISPLAY (PÚBLICA)
-app.get('/api/display/playlist/:department', async (req, res) => {
+app.get('/display/playlist/:department', async (req, res) => {
   const doc = await Playlist.findOne({ department: req.params.department });
   if (!doc || doc.items.length === 0) return res.status(404).json([]);
   res.json(doc.items);
 });
 
 // -----------------------------------------------------
-// 6. STATUS E EXPORTAÇÃO (PADRÃO VERCEL)
+// 6. STATUS E EXPORTAÇÃO
 // -----------------------------------------------------
-app.get('/api/status', (req, res) => res.json({ status: 'ok', environment: 'Vercel Serverless' }));
+app.get('/status', (req, res) => res.json({ status: 'ok', environment: 'Vercel Serverless' }));
 
-// IMPORTANTE: Exportar para a Vercel
 module.exports = app;
-
