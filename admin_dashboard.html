@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administração de Mídia Indoor</title>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .data-input {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- OVERLAY DE LOGIN -->
+    <div id="login-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2 text-center">Login do Painel</h2>
+            <p class="text-gray-500 text-sm mb-4 text-center">
+                Entre com seu e-mail e senha cadastrados no sistema.
+            </p>
+            <p id="login-error" class="mb-4 text-center text-sm font-medium text-red-600 hidden">
+                Credenciais inválidas. Tente novamente.
+            </p>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="login-email" class="block text-sm font-medium text-gray-700">E-mail</label>
+                    <input type="email" id="login-email" name="email" required
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="login-password" class="block text-sm font-medium text-gray-700">Senha</label>
+                    <input type="password" id="login-password" name="password" required
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <button type="submit" id="login-button"
+                        class="w-full py-2 px-4 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-semibold shadow-sm">
+                    Entrar
+                </button>
+                <p id="login-loading" class="mt-2 text-center text-sm text-gray-500 hidden">
+                    Autenticando...
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONTEÚDO PRINCIPAL (só aparece após login) -->
+    <div id="app-container" class="hidden min-h-screen p-4 sm:p-8">
+        <div class="max-w-7xl mx-auto">
+            <header class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-gray-800 border-b pb-2">Gestão de Mídia Indoor</h1>
+                    <p class="text-gray-500 mt-1 text-sm">Gerencie mídias e playlists a partir do arquivo <code>playlists.json</code>.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="user-info" class="text-sm text-gray-600"></span>
+                    <button id="logout-button"
+                            class="py-1 px-3 rounded-md text-sm text-white bg-red-600 hover:bg-red-700">
+                        Sair
+                    </button>
+                </div>
+            </header>
+
+            <!-- Seção de criação -->
+            <section id="upload-section" class="bg-white p-6 rounded-lg shadow-xl mb-8">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">
+                    1. Adicionar Nova Mídia à Playlist
+                </h2>
+                
+                <form id="create-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Título -->
+                        <div>
+                            <label for="titulo" class="block text-sm font-medium text-gray-700">Título/Descrição</label>
+                            <input type="text" id="titulo" name="titulo" required 
+                                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <!-- Departamento -->
+                        <div>
+                            <label for="departamento" class="block text-sm font-medium text-gray-700">Departamento de Exibição</label>
+                            <select id="departamento" name="departamento" required 
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Selecione um Departamento</option>
+                                <option value="Producao">Produção</option>
+                                <option value="Cozinha">Cozinha</option>
+                                <option value="Escritorio">Escritório</option>
+                                <option value="VIPSOFT">VIPSOFT</option>
+                                <option value="Estoque">Estoque</option>
+                                <option value="Ferramentaria">Ferramentaria</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Data de Início -->
+                        <div>
+                            <label for="data_inicio" class="block text-sm font-medium text-gray-700">Início da Exibição</label>
+                            <input type="datetime-local" id="data_inicio" name="data_inicio" required 
+                                   class="data-input mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <!-- Data de Fim -->
+                        <div>
+                            <label for="data_fim" class="block text-sm font-medium text-gray-700">Fim da Exibição</label>
+                            <input type="datetime-local" id="data_fim" name="data_fim" required 
+                                   class="data-input mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Tipo de Arquivo -->
+                        <div>
+                            <label for="tipo_arquivo" class="block text-sm font-medium text-gray-700">Tipo de Arquivo</label>
+                            <select id="tipo_arquivo" name="tipo_arquivo" required
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="imagem">Imagem</option>
+                                <option value="video">Vídeo</option>
+                            </select>
+                        </div>
+
+                        <!-- Duração personalizada (apenas imagem) -->
+                        <div>
+                            <label for="custom_duration_ms" class="block text-sm font-medium text-gray-700">
+                                Duração (ms - apenas imagens, opcional)
+                            </label>
+                            <input type="number" id="custom_duration_ms" name="custom_duration_ms" 
+                                   placeholder="Ex.: 7000"
+                                   class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Caminho da mídia + upload -->
+                    <div>
+                        <label for="url_midia" class="block text-sm font-medium text-gray-700">
+                            Caminho da Mídia (arquivo no servidor)
+                        </label>
+                        <input type="text" id="url_midia" name="url_midia" required
+                               placeholder="/media_files/seu_arquivo.mp4 ou .png"
+                               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+
+                        <div class="mt-3 flex flex-col md:flex-row md:items-center gap-2">
+                            <input type="file" id="file_upload"
+                                   accept="video/*,image/*"
+                                   class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <button type="button" id="upload-file-button"
+                                    class="py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                Enviar arquivo
+                            </button>
+                        </div>
+                        <p id="upload-file-message" class="mt-1 text-xs text-gray-500"></p>
+                        <p class="mt-1 text-xs text-gray-400">
+                            Ao enviar o arquivo, o caminho será preenchido automaticamente em "Caminho da Mídia".
+                        </p>
+                    </div>
+
+                    <!-- Botão e Status -->
+                    <div class="pt-4">
+                        <button type="submit" id="submit-button"
+                                class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150">
+                            <span id="button-text">Adicionar à Playlist</span>
+                            <span id="loading-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full mx-auto"></span>
+                        </button>
+                        <p id="upload-message" class="mt-2 text-center text-sm font-medium"></p>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Seção de visualização/edição -->
+            <section id="list-section" class="bg-white p-6 rounded-lg shadow-xl">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">
+                    2. Mídias Agendadas (arquivo playlists.json)
+                </h2>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depto./Tipo</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Início/Fim</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Display</th>
+                            </tr>
+                        </thead>
+                        <tbody id="media-table-body" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="6" class="p-4 text-center text-gray-500" id="loading-list">Carregando mídias...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Modal de Edição -->
+                <div id="modal-container" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+                    <div id="edit-modal" class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-lg transform transition-all">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Editar Agendamento</h3>
+                        <form id="edit-form" class="space-y-4">
+                            <input type="hidden" id="edit-department">
+                            <input type="hidden" id="edit-index">
+
+                            <div>
+                                <label for="edit-titulo" class="block text-sm font-medium text-gray-700">Título</label>
+                                <input type="text" id="edit-titulo" name="edit-titulo" required 
+                                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="edit-data_inicio" class="block text-sm font-medium text-gray-700">Início</label>
+                                    <input type="datetime-local" id="edit-data_inicio" name="edit-data_inicio" required 
+                                           class="data-input mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label for="edit-data_fim" class="block text-sm font-medium text-gray-700">Fim</label>
+                                    <input type="datetime-local" id="edit-data_fim" name="edit-data_fim" required 
+                                           class="data-input mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="edit-ativo" class="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                                    <input type="checkbox" id="edit-ativo" name="edit-ativo" class="rounded text-blue-600 focus:ring-blue-500">
+                                    <span>Mídia Ativa (será exibida se estiver dentro da data)</span>
+                                </label>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6">
+                                <button type="button" id="close-modal-btn" class="py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="py-2 px-4 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                    Salvar Alterações
+                                </button>
+                            </div>
+                            <p id="edit-message" class="mt-2 text-center text-sm font-medium"></p>
+                        </form>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin + '/api';
+        const PLAYLIST_API_URL = `${API_BASE_URL}/admin/playlist`;
+        const DISPLAY_BASE_URL = 'display_player.html';
+
+        const DEPARTMENTS = [
+            { id: 'Producao', name: 'Produção' },
+            { id: 'Cozinha', name: 'Cozinha' },
+            { id: 'Escritorio', name: 'Escritório' },
+            { id: 'VIPSOFT', name: 'VIPSOFT' },
+            { id: 'Estoque', name: 'Estoque' },
+            { id: 'Ferramentaria', name: 'Ferramentaria' },
+        ];
+
+        // LOGIN
+        const loginOverlay = document.getElementById('login-overlay');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const loginButton = document.getElementById('login-button');
+        const loginLoading = document.getElementById('login-loading');
+
+        const appContainer = document.getElementById('app-container');
+        const userInfo = document.getElementById('user-info');
+        const logoutButton = document.getElementById('logout-button');
+
+        const mediaTableBody = document.getElementById('media-table-body');
+        const createForm = document.getElementById('create-form');
+        const uploadMessage = document.getElementById('upload-message');
+        const submitButton = document.getElementById('submit-button');
+        const buttonText = document.getElementById('button-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        const modalContainer = document.getElementById('modal-container');
+        const editForm = document.getElementById('edit-form');
+        const closeEditModalBtn = document.getElementById('close-modal-btn');
+        const editMessage = document.getElementById('edit-message');
+
+        // elementos de upload de arquivo
+        const fileInput = document.getElementById('file_upload');
+        const uploadFileButton = document.getElementById('upload-file-button');
+        const uploadFileMessage = document.getElementById('upload-file-message');
+        const urlMidiaInput = document.getElementById('url_midia');
+
+        function showMessage(element, text, isSuccess = true) {
+            element.textContent = text;
+            element.className = `mt-2 text-center text-sm font-medium ${isSuccess ? 'text-green-600' : 'text-red-600'}`;
+            setTimeout(() => { element.textContent = ''; }, 5000);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/D';
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return new Date(dateString).toLocaleDateString('pt-BR', options);
+        }
+
+        function formatDatetimeLocal(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const offset = date.getTimezoneOffset() * 60000;
+            const local = new Date(date.getTime() - offset).toISOString().slice(0, 16);
+            return local;
+        }
+
+        async function authFetch(url, options = {}) {
+            const opts = {
+                ...options,
+                credentials: 'include', // manda cookie de sessão
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {})
+                }
+            };
+            const resp = await fetch(url, opts);
+            if (resp.status === 401) {
+                // Sessão inválida/expirada
+                showLoginOverlay();
+                throw new Error('Sessão expirada ou não autenticado.');
+            }
+            return resp;
+        }
+
+        function showLoginOverlay() {
+            loginOverlay.classList.remove('hidden');
+            loginOverlay.classList.add('flex');
+            appContainer.classList.add('hidden');
+            userInfo.textContent = '';
+        }
+
+        function hideLoginOverlay() {
+            loginOverlay.classList.add('hidden');
+            loginOverlay.classList.remove('flex');
+            appContainer.classList.remove('hidden');
+        }
+
+        // LOGIN SUBMIT
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.classList.add('hidden');
+            loginLoading.classList.remove('hidden');
+            loginButton.disabled = true;
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const resp = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.msg || 'Erro no login');
+                }
+
+                userInfo.textContent = `Logado como: ${data.user.name} (${data.user.email})`;
+                loginForm.reset();
+                hideLoginOverlay();
+                await loadMediaList();
+            } catch (err) {
+                console.error('Erro de login:', err);
+                loginError.textContent = err.message || 'Credenciais inválidas.';
+                loginError.classList.remove('hidden');
+            } finally {
+                loginLoading.classList.add('hidden');
+                loginButton.disabled = false;
+            }
+        });
+
+        // LOGOUT
+        logoutButton.addEventListener('click', async () => {
+            try {
+                await fetch(`${API_BASE_URL}/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (err) {
+                console.error('Erro ao fazer logout:', err);
+            } finally {
+                showLoginOverlay();
+            }
+        });
+
+        // Upload de arquivo e preenchimento automático do campo url_midia
+        uploadFileButton.addEventListener('click', async () => {
+            uploadFileMessage.textContent = '';
+
+            const file = fileInput.files[0];
+            if (!file) {
+                showMessage(uploadFileMessage, 'Selecione um arquivo primeiro.', false);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const resp = await fetch(`${API_BASE_URL}/media/upload`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                const contentType = resp.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await resp.text();
+                    console.error('Resposta NÃO JSON do servidor no upload:', text);
+                    throw new Error('Servidor retornou conteúdo não JSON (status ' + resp.status + '). Veja o console.');
+                }
+
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.message || 'Erro no upload da mídia.');
+                }
+
+                urlMidiaInput.value = data.url;
+                showMessage(uploadFileMessage, 'Upload realizado com sucesso! Caminho preenchido.', true);
+            } catch (err) {
+                console.error('Erro no upload de arquivo:', err);
+                showMessage(uploadFileMessage, 'Erro ao enviar arquivo: ' + err.message, false);
+            }
+        });
+
+        // Carrega playlist de todos departamentos
+        async function loadMediaList() {
+            mediaTableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Carregando mídias...</td></tr>';
+            const allItems = [];
+            const now = new Date();
+
+            for (const dept of DEPARTMENTS) {
+                try {
+                    const resp = await authFetch(`${PLAYLIST_API_URL}/${dept.id}`);
+                    if (!resp.ok) continue;
+                    const playlist = await resp.json();
+                    if (!Array.isArray(playlist)) continue;
+
+                    playlist.forEach((item, index) => {
+                        allItems.push({
+                            ...item,
+                            _departmentId: dept.id,
+                            _departmentName: dept.name,
+                            _index: index,
+                        });
+                    });
+                } catch (err) {
+                    console.error('Erro ao carregar playlist de', dept.id, err);
+                }
+            }
+
+            if (allItems.length === 0) {
+                mediaTableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Nenhuma mídia encontrada. Adicione novas mídias acima.</td></tr>';
+                return;
+            }
+
+            renderMediaList(allItems, now);
+        }
+
+        function renderMediaList(midias, now) {
+            mediaTableBody.innerHTML = '';
+
+            midias.forEach((midia) => {
+                const dataInicio = midia.data_inicio ? new Date(midia.data_inicio) : null;
+                const dataFim = midia.data_fim ? new Date(midia.data_fim) : null;
+                const ativoFlag = midia.ativo !== false;
+
+                let statusText = 'Sem Data';
+                let statusColor = 'bg-gray-100 text-gray-600';
+
+                if (!ativoFlag) {
+                    statusText = 'Inativo (Desabilitado)';
+                    statusColor = 'bg-gray-100 text-gray-600';
+                } else if (dataInicio && dataFim) {
+                    if (now < dataInicio) {
+                        statusText = 'Agendado';
+                        statusColor = 'bg-yellow-100 text-yellow-800';
+                    } else if (now >= dataInicio && now <= dataFim) {
+                        statusText = 'No Ar';
+                        statusColor = 'bg-green-100 text-green-800';
+                    } else {
+                        statusText = 'Expirado';
+                        statusColor = 'bg-red-100 text-red-800';
+                    }
+                }
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${midia.titulo || '(sem título)'}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
+                        ${midia._departmentName} (${midia.tipo_arquivo || 'N/D'})
+                    </td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
+                        <span class="font-semibold">Início:</span> ${formatDate(midia.data_inicio)}<br>
+                        <span class="font-semibold">Fim:</span> ${formatDate(midia.data_fim)}
+                    </td>
+                    <td class="px-3 py-3 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button class="text-blue-600 hover:text-blue-900"
+                                onclick="openEditModal('${midia._departmentId}', ${midia._index})">
+                            Editar
+                        </button>
+                        <button class="text-red-600 hover:text-red-900"
+                                onclick="deleteMedia('${midia._departmentId}', ${midia._index}, '${(midia.titulo || '').replace(/'/g, "\\'")}')">
+                            Excluir
+                        </button>
+                    </td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium">
+                        <a href="${DISPLAY_BASE_URL}?departamento=${midia._departmentId}" target="_blank" class="text-indigo-600 hover:text-indigo-900 font-semibold">
+                            Ver Display
+                        </a>
+                    </td>
+                `;
+                mediaTableBody.appendChild(row);
+            });
+        }
+
+        // Criar novo item
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const titulo = document.getElementById('titulo').value.trim();
+            const departamento = document.getElementById('departamento').value;
+            const data_inicio = document.getElementById('data_inicio').value;
+            const data_fim = document.getElementById('data_fim').value;
+            const tipo_arquivo = document.getElementById('tipo_arquivo').value;
+            const custom_duration_ms_raw = document.getElementById('custom_duration_ms').value;
+            const url_midia = document.getElementById('url_midia').value.trim();
+
+            if (!departamento) {
+                showMessage(uploadMessage, 'Selecione um departamento.', false);
+                return;
+            }
+
+            submitButton.disabled = true;
+            buttonText.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+            showMessage(uploadMessage, 'Salvando no arquivo de playlist...', true);
+
+            try {
+                const resp = await authFetch(`${PLAYLIST_API_URL}/${departamento}`);
+                let playlist = [];
+                if (resp.ok) {
+                    playlist = await resp.json();
+                    if (!Array.isArray(playlist)) playlist = [];
+                }
+
+                const newItem = {
+                    titulo,
+                    tipo_arquivo,
+                    url_midia,
+                    data_inicio: new Date(data_inicio).toISOString(),
+                    data_fim: new Date(data_fim).toISOString(),
+                    ativo: true
+                };
+
+                if (tipo_arquivo === 'imagem' && custom_duration_ms_raw) {
+                    const ms = parseInt(custom_duration_ms_raw, 10);
+                    if (!isNaN(ms) && ms > 0) {
+                        newItem.custom_duration_ms = ms;
+                    }
+                }
+
+                playlist.push(newItem);
+
+                const saveResp = await authFetch(`${PLAYLIST_API_URL}/${departamento}`, {
+                    method: 'POST',
+                    body: JSON.stringify(playlist)
+                });
+
+                if (!saveResp.ok) {
+                    const errData = await saveResp.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Erro ao salvar playlist.');
+                }
+
+                showMessage(uploadMessage, 'Mídia adicionada à playlist com sucesso!', true);
+                createForm.reset();
+                loadMediaList();
+
+            } catch (err) {
+                console.error('Erro ao adicionar mídia à playlist:', err);
+                showMessage(uploadMessage, 'Erro ao salvar no arquivo de playlist: ' + err.message, false);
+            } finally {
+                submitButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+
+        // Excluir item
+        window.deleteMedia = async (departmentId, index, titulo) => {
+            if (!confirm(`Tem certeza que deseja excluir "${titulo}" da playlist de ${departmentId}?`)) {
+                return;
+            }
+
+            try {
+                const resp = await authFetch(`${PLAYLIST_API_URL}/${departmentId}`);
+                if (!resp.ok) throw new Error('Não foi possível carregar a playlist atual.');
+
+                let playlist = await resp.json();
+                if (!Array.isArray(playlist)) playlist = [];
+
+                if (index < 0 || index >= playlist.length) {
+                    throw new Error('Índice inválido na playlist.');
+                }
+
+                playlist.splice(index, 1);
+
+                const saveResp = await authFetch(`${PLAYLIST_API_URL}/${departmentId}`, {
+                    method: 'POST',
+                    body: JSON.stringify(playlist)
+                });
+
+                if (!saveResp.ok) {
+                    const errData = await saveResp.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Erro ao salvar playlist após exclusão.');
+                }
+
+                showMessage(uploadMessage, `Mídia "${titulo}" excluída da playlist!`, true);
+                loadMediaList();
+
+            } catch (err) {
+                console.error('Erro ao excluir mídia:', err);
+                showMessage(uploadMessage, 'Erro ao excluir da playlist: ' + err.message, false);
+            }
+        };
+
+        // Abrir modal de edição
+        window.openEditModal = async (departmentId, index) => {
+            try {
+                const resp = await authFetch(`${PLAYLIST_API_URL}/${departmentId}`);
+                if (!resp.ok) throw new Error('Não foi possível carregar a playlist.');
+
+                const playlist = await resp.json();
+                if (!Array.isArray(playlist) || index < 0 || index >= playlist.length) {
+                    throw new Error('Item inválido na playlist.');
+                }
+
+                const midia = playlist[index];
+
+                document.getElementById('edit-department').value = departmentId;
+                document.getElementById('edit-index').value = index;
+                document.getElementById('edit-titulo').value = midia.titulo || '';
+                document.getElementById('edit-data_inicio').value = formatDatetimeLocal(midia.data_inicio);
+                document.getElementById('edit-data_fim').value = formatDatetimeLocal(midia.data_fim);
+                document.getElementById('edit-ativo').checked = (midia.ativo !== false);
+
+                editMessage.textContent = '';
+
+                modalContainer.classList.remove('hidden');
+                modalContainer.classList.add('flex');
+            } catch (err) {
+                console.error('Erro ao abrir modal de edição:', err);
+                showMessage(uploadMessage, 'Erro ao carregar dados da mídia para edição: ' + err.message, false);
+            }
+        };
+
+        closeEditModalBtn.addEventListener('click', () => {
+            modalContainer.classList.remove('flex');
+            modalContainer.classList.add('hidden');
+        });
+
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const departmentId = document.getElementById('edit-department').value;
+            const index = parseInt(document.getElementById('edit-index').value, 10);
+
+            const newTitulo = document.getElementById('edit-titulo').value.trim();
+            const newDataInicio = document.getElementById('edit-data_inicio').value;
+            const newDataFim = document.getElementById('edit-data_fim').value;
+            const newAtivo = document.getElementById('edit-ativo').checked;
+
+            try {
+                const resp = await authFetch(`${PLAYLIST_API_URL}/${departmentId}`);
+                if (!resp.ok) throw new Error('Não foi possível carregar a playlist.');
+
+                let playlist = await resp.json();
+                if (!Array.isArray(playlist) || index < 0 || index >= playlist.length) {
+                    throw new Error('Item inválido na playlist.');
+                }
+
+                playlist[index].titulo = newTitulo;
+                playlist[index].data_inicio = new Date(newDataInicio).toISOString();
+                playlist[index].data_fim = new Date(newDataFim).toISOString();
+                playlist[index].ativo = newAtivo;
+
+                const saveResp = await authFetch(`${PLAYLIST_API_URL}/${departmentId}`, {
+                    method: 'POST',
+                    body: JSON.stringify(playlist)
+                });
+
+                if (!saveResp.ok) {
+                    const errData = await saveResp.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Erro ao salvar alterações na playlist.');
+                }
+
+                showMessage(editMessage, 'Agendamento atualizado com sucesso!', true);
+                loadMediaList();
+                setTimeout(() => {
+                    modalContainer.classList.remove('flex');
+                    modalContainer.classList.add('hidden');
+                }, 1000);
+
+            } catch (err) {
+                console.error('Erro ao salvar edição:', err);
+                showMessage(editMessage, 'Erro ao salvar alterações: ' + err.message, false);
+            }
+        });
+
+        // Verifica se já está logado ao carregar a página
+        async function initializeAuth() {
+            try {
+                const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (resp.ok) {
+                    const user = await resp.json();
+                    userInfo.textContent = `Logado como: ${user.name} (${user.email})`;
+                    hideLoginOverlay();
+                    await loadMediaList();
+                } else {
+                    showLoginOverlay();
+                }
+            } catch (err) {
+                console.error('Erro ao verificar sessão:', err);
+                showLoginOverlay();
+            }
+        }
+
+        window.onload = initializeAuth;
+    </script>
+</body>
+</html>
