@@ -43,14 +43,18 @@ app.use(bodyParser.json());
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'segredo_dev_local',
-  resave: false,
+  resave: true, // Mudado para true para garantir que a sessão não morra
   saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: MONGODB_URI }),
+  store: MongoStore.create({ 
+    mongoUrl: process.env.MONGODB_URI,
+    ttl: 14 * 24 * 60 * 60 // Sessão dura 14 dias no banco
+  }),
+  proxy: true, // IMPORTANTE para a Vercel
   cookie: {
     maxAge: 1000 * 60 * 60 * 8,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true em produção
-    sameSite: 'lax'
+    secure: true, // Obrigatório na Vercel (HTTPS)
+    sameSite: 'none' // Necessário para evitar bloqueio de cookies em domínios .vercel.app
   },
 }));
 
@@ -116,3 +120,4 @@ app.get('/api/status', (req, res) => res.json({ status: 'ok', environment: 'Verc
 
 // IMPORTANTE: Exportar para a Vercel
 module.exports = app;
+
