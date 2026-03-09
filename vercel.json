@@ -8,16 +8,16 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "api/server.js"
+      "src": "/display_player.html",
+      "dest": "/display_player.html"
     },
     {
-      "src": "/display_player.html",
-      "dest": "display_player.html"
+      "src": "/api/(.*)",
+      "dest": "/api/server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "api/server.js"
+      "dest": "/api/server.js"
     }
   ]
 }
