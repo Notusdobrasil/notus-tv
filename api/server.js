@@ -8,12 +8,12 @@ const MongoStore = require('connect-mongo');
 
 const app = express();
 
-// Conexão MongoDB
+// 1. Conexão MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB Conectado'))
   .catch(err => console.error('❌ Erro MongoDB:', err));
 
-// Models
+// 2. Models
 const User = mongoose.model('User', new mongoose.Schema({
   name: String,
   email: { type: String, unique: true, lowercase: true },
@@ -25,7 +25,7 @@ const Playlist = mongoose.model('Playlist', new mongoose.Schema({
   items: { type: Array, default: [] }
 }));
 
-// Middlewares
+// 3. Middlewares
 app.use(bodyParser.json());
 app.set('trust proxy', 1);
 
@@ -42,19 +42,30 @@ app.use(session({
   }
 }));
 
-// --- ROTEAMENTO ---
-const router = express.Router();
+// --- 4. ROTA PÚBLICA (PARA O PLAYER) ---
+// Esta rota DEVE vir antes de qualquer trava de segurança
+const publicRouter = express.Router();
 
-// Auth
-router.get('/auth/me', async (req, res) => {
-  if (req.session?.userId) {
-    const user = await User.findById(req.session.userId);
-    if (user) return res.json({ name: user.name });
+publicRouter.get('/display/playlist/:dept', async (req, res) => {
+  try {
+    const doc = await Playlist.findOne({ department: req.params.dept });
+    if (!doc) return res.json([]);
+    res.json(doc.items);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar playlist" });
   }
-  res.status(401).json({ msg: 'Não autenticado' });
 });
 
-router.post('/auth/login', async (req, res) => {
+// --- 5. ROTAS PRIVADAS (ADM) ---
+const adminRouter = express.Router();
+
+// Middleware de trava
+const requireAuth = (req, res, next) => {
+  if (req.session?.userId) return next();
+  res.status(401).json({ msg: 'Não autorizado' });
+};
+
+adminRouter.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email?.toLowerCase() });
   if (user && await bcrypt.compare(password, user.password)) {
@@ -64,13 +75,20 @@ router.post('/auth/login', async (req, res) => {
   res.status(401).json({ msg: 'Erro' });
 });
 
-// Playlists
-router.get('/admin/playlist/:dept', async (req, res) => {
+adminRouter.get('/auth/me', async (req, res) => {
+  if (req.session?.userId) {
+    const user = await User.findById(req.session.userId);
+    if (user) return res.json({ name: user.name });
+  }
+  res.status(401).json({ msg: '401' });
+});
+
+adminRouter.get('/admin/playlist/:dept', requireAuth, async (req, res) => {
   const doc = await Playlist.findOne({ department: req.params.dept });
   res.json(doc ? doc.items : []);
 });
 
-router.post('/admin/playlist/:dept', async (req, res) => {
+adminRouter.post('/admin/playlist/:dept', requireAuth, async (req, res) => {
   await Playlist.findOneAndUpdate(
     { department: req.params.dept },
     { items: req.body },
@@ -79,9 +97,11 @@ router.post('/admin/playlist/:dept', async (req, res) => {
   res.json({ msg: 'Salvo' });
 });
 
-// VITAL PARA VERCEL: 
-// Aceita tanto requisições com /api quanto sem, evitando o 404
-app.use('/api', router);
-app.use('/', router);
+// --- 6. ATIVAÇÃO DAS ROTAS (ESTRATÉGIA VERCEL) ---
+// Mapeamos as rotas para aceitar tanto com /api quanto sem
+app.use('/api', publicRouter);
+app.use('/api', adminRouter);
+app.use('/', publicRouter);
+app.use('/', adminRouter);
 
 module.exports = app;
