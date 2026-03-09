@@ -4,130 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Media Indoor Display</title>
-    <!-- Carrega o Tailwind CSS para estilização rápida e responsiva -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Define a fonte e garante que o corpo ocupe toda a tela */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden; /* Remove barras de rolagem */
-            background-color: #1f2937; /* Fundo cinza escuro */
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            overflow: hidden;
+            background-color: #000;
         }
-        /* O contêiner de mídia deve centralizar e preencher a tela */
         #media-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             position: relative;
+            display: flex; justify-content: center; align-items: center;
         }
-        /* Estilos base para a mídia */
         .media-element {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Garante que a mídia seja visível, sem cortes */
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
             opacity: 0;
             transition: opacity 1s ease-in-out;
-            z-index: 1;
         }
-        .media-element.active {
-            opacity: 1;
-            z-index: 2;
-        }
-        .media-element.video {
-            object-fit: cover; /* Vídeos geralmente ficam melhores cobrindo a tela */
-        }
-        
-        /* Estilo para a tela de status/erro */
-        #status-overlay {
-            z-index: 100;
-            background-color: rgba(31, 41, 55, 0.95); /* Fundo com pouca transparência */
-        }
+        .media-element.active { opacity: 1; z-index: 10; }
+        #status-overlay { z-index: 100; background: #111; }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body>
 
-    <div id="media-container">
-        <!-- Elementos de Mídia (serão adicionados pelo JS) -->
+    <div id="media-container"></div>
+
+    <div id="status-overlay" class="fixed inset-0 flex flex-col justify-center items-center text-center p-8">
+        <div id="status-icon" class="animate-spin mb-4 w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        <h2 id="status-title" class="text-2xl font-bold text-white">Iniciando Player...</h2>
+        <p id="status-details" class="text-gray-400 mt-2">Buscando configurações da rede</p>
+        <p class="text-xs text-gray-500 mt-4">Departamento: <span id="dept-display">---</span></p>
     </div>
 
-    <!-- TELA DE STATUS/ERRO -->
-    <div id="status-overlay" class="fixed inset-0 flex flex-col justify-center items-center text-center p-8 transition-opacity duration-500">
-        <svg id="status-icon" class="animate-spin w-12 h-12 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <h2 id="status-title" class="text-2xl font-bold">Aguardando Configuração</h2>
-        <p id="status-details" class="text-gray-400 mt-2">Tentando buscar playlist...</p>
-        <p class="text-xs text-gray-500 mt-4">Chave do Player: <span id="department-key-display">N/A</span></p>
-    </div>
+    <script>
+        const container = document.getElementById('media-container');
+        const overlay = document.getElementById('status-overlay');
+        const statusTitle = document.getElementById('status-title');
+        const statusDetails = document.getElementById('status-details');
+        const deptDisplay = document.getElementById('dept-display');
 
-  <script>
-    // --- CONFIGURAÇÃO VERCEL (CORREÇÃO DEFINITIVA) ---
-    // Removemos a porta 3001. A Vercel usa HTTPS padrão (443).
-    const API_BASE_URL = `${window.location.origin}/api/display/playlist`;
+        let currentPlaylist = [];
+        let currentIndex = 0;
+        let isPlaying = false;
 
-    const REFRESH_INTERVAL_MS = 300000; 
-    const DEFAULT_IMAGE_DURATION_MS = 7000; 
-    
-    // ... variáveis de controle (container, statusOverlay, etc) permanecem iguais ...
+        // Configuração da API
+        const API_URL = '/api/display/playlist';
 
-    async function fetchPlaylist() {
-        const params = new URLSearchParams(window.location.search);
-        department = params.get('departamento');
-        
-        if (!department) {
-            updateStatus("ERRO DE CONFIGURAÇÃO", "Defina o departamento na URL. Ex: ?departamento=Producao", true);
-            return;
+        function updateStatus(title, details) {
+            statusTitle.textContent = title;
+            statusDetails.textContent = details;
         }
 
-        departmentKeyDisplay.textContent = department;
-        const fullUrl = `${API_BASE_URL}/${department}`;
-        updateStatus("Buscando Playlist...", "Conectando ao servidor Vercel...");
-        
-        try {
-            // Chamada sem porta manual, usando o roteamento do vercel.json
-            const response = await fetch(fullUrl, { 
-                signal: AbortSignal.timeout(10000),
-                headers: { 'Cache-Control': 'no-cache' }
-            });
+        async function fetchPlaylist() {
+            const params = new URLSearchParams(window.location.search);
+            const dept = params.get('departamento');
 
-            if (!response.ok) {
-                throw new Error(`Erro HTTP ${response.status}: Verifique o vercel.json`);
+            if (!dept) {
+                updateStatus("ERRO", "Adicione ?departamento=NOME no final da URL");
+                return;
             }
+            deptDisplay.textContent = dept;
 
-            const data = await response.json();
-            const playlistData = Array.isArray(data) ? data : (data.playlist || []);
+            try {
+                const response = await fetch(`${API_URL}/${dept}`);
+                if (!response.ok) throw new Error("Erro na rede");
+                
+                const data = await response.json();
+                
+                if (Array.isArray(data) && data.length > 0) {
+                    currentPlaylist = data;
+                    overlay.style.display = 'none';
+                    if (!isPlaying) startPlayback();
+                } else {
+                    overlay.style.display = 'flex';
+                    updateStatus("Sem Mídia", `Nenhuma mídia ativa para ${dept}`);
+                }
+            } catch (error) {
+                updateStatus("Erro de Conexão", "Tentando reconectar...");
+            }
+        }
 
-            if (playlistData.length > 0) {
-                currentPlaylist = playlistData;
-                if (!isPlaying) {
-                    isPlaying = true;
-                    startPlayback();
-                } 
-                hideStatus(); 
+        function startPlayback() {
+            if (currentPlaylist.length === 0) return;
+            isPlaying = true;
+            showMedia();
+        }
+
+        function showMedia() {
+            const item = currentPlaylist[currentIndex];
+            container.innerHTML = ''; // Limpa anterior
+
+            let el;
+            if (item.tipo_arquivo === 'video') {
+                el = document.createElement('video');
+                el.src = item.url_midia;
+                el.autoplay = true;
+                el.muted = true; // Necessário para autoplay no Chrome
+                el.onended = next;
             } else {
-                updateStatus("Aguardando Mídia", `Nenhuma mídia para: ${department}`, false);
+                el = document.createElement('img');
+                el.src = item.url_midia;
+                setTimeout(next, 7000); // 7 segundos para fotos
             }
-        } catch (error) {
-            console.error("Erro na API:", error);
-            updateStatus("ERRO DE CONEXÃO", 
-                `Não foi possível falar com o servidor. Verifique se o arquivo está na pasta /api.`, 
-                true
-            );
+
+            el.className = 'media-element active';
+            container.appendChild(el);
         }
-    }
-    // ... restante das funções ...
-</script>
+
+        function next() {
+            currentIndex = (currentIndex + 1) % currentPlaylist.length;
+            showMedia();
+        }
+
+        // Loop de atualização (checa novas mídias a cada 1 minuto)
+        setInterval(fetchPlaylist, 60000);
+        fetchPlaylist();
+
+    </script>
 </body>
 </html>
-
