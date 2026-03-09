@@ -2,7 +2,7 @@
   "version": 2,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/server.js" },
-    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin", "destination": "/painel.html" },
     { "source": "/", "destination": "/display_player.html" }
   ]
 }
