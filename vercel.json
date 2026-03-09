@@ -3,7 +3,6 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/server.js" },
     { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/display_player.html", "destination": "/display_player.html" },
     { "source": "/", "destination": "/display_player.html" }
   ]
 }
