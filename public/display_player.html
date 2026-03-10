@@ -101,39 +101,56 @@
         }
 
         function showMedia() {
-            if (timer) clearTimeout(timer);
-            if (currentPlaylist.length === 0) return;
+    if (timer) clearTimeout(timer);
+    const item = currentPlaylist[currentIndex];
+    
+    // 1. Criamos o elemento novo "escondido"
+    const newEl = item.tipo_arquivo === 'video' ? document.createElement('video') : document.createElement('img');
+    
+    newEl.style.opacity = "0";
+    newEl.style.transition = "opacity 0.8s ease-in-out"; // Efeito de 0.8 segundos
+    newEl.className = 'media-element';
+    newEl.style.display = "block";
 
-            const item = currentPlaylist[currentIndex];
-            container.innerHTML = ''; 
+    if (item.tipo_arquivo === 'video') {
+        newEl.src = item.url_midia;
+        newEl.autoplay = true;
+        newEl.muted = true;
+        newEl.playsInline = true;
+        
+        newEl.oncanplaythrough = () => {
+            container.innerHTML = ''; // Limpa o antigo só quando o novo estiver pronto
+            container.appendChild(newEl);
+            setTimeout(() => newEl.style.opacity = "1", 50);
+        };
 
-            let el;
-            if (item.tipo_arquivo === 'video') {
-                el = document.createElement('video');
-                el.src = item.url_midia;
-                el.autoplay = true;
-                el.muted = true;
-                el.playsInline = true;
-                el.style.backgroundColor = "black";
-                el.onended = next;
-                el.onerror = () => { console.error("Erro no vídeo"); next(); };
-            } else {
-                el = document.createElement('img');
-                // IMPORTANTE: Adiciona política de referenciamento para Dropbox/Drive
-                el.referrerPolicy = "no-referrer";
-                el.src = item.url_midia;
-                
-                el.onerror = () => {
-                    console.error("Erro na imagem, pulando...");
-                    setTimeout(next, 2000);
-                };
-                
-                timer = setTimeout(next, 7000); 
-            }
+        newEl.onended = next;
+        newEl.onerror = () => { console.error("Erro vídeo"); next(); };
+    } else {
+        // 2. Pré-carregamento da imagem
+        const imgPreloader = new Image();
+        imgPreloader.src = item.url_midia;
+        
+        imgPreloader.onload = () => {
+            newEl.src = item.url_midia;
+            container.innerHTML = ''; // Remove a imagem antiga
+            container.appendChild(newEl);
+            
+            // 3. Aplica o efeito de Fade-in
+            setTimeout(() => {
+                newEl.style.opacity = "1";
+            }, 50);
 
-            el.className = 'media-element active';
-            container.appendChild(el);
-        }
+            // Tempo de exibição (ex: 10 segundos para dar tempo de ver)
+            timer = setTimeout(next, 10000); 
+        };
+
+        imgPreloader.onerror = () => {
+            console.error("Erro imagem");
+            next();
+        };
+    }
+}
 
         function next() {
             if (currentPlaylist.length === 0) return;
@@ -147,3 +164,4 @@
     </script>
 </body>
 </html>
+
