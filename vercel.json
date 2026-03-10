@@ -2,6 +2,16 @@
   "version": 2,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/server.js" },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "painel.notus.ind.br"
+        }
+      ],
+      "destination": "/painel.html"
+    },
     { "source": "/admin", "destination": "/painel.html" },
     { "source": "/painel", "destination": "/painel.html" },
     { "source": "/", "destination": "/display_player.html" }
