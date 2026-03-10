@@ -23,11 +23,10 @@
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            object-fit: contain;
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
+            object-fit: contain; /* Ou cover, dependendo da sua preferência */
+            display: none;
         }
-        .media-element.active { opacity: 1; z-index: 10; }
+        .media-element.active { display: block; }
         #status-overlay { z-index: 100; background: #111; }
     </style>
 </head>
@@ -42,7 +41,7 @@
         <p class="text-xs text-gray-500 mt-4">Departamento: <span id="dept-display">---</span></p>
     </div>
 
- <script>
+    <script>
         const container = document.getElementById('media-container');
         const overlay = document.getElementById('status-overlay');
         const statusTitle = document.getElementById('status-title');
@@ -66,7 +65,7 @@
             const dept = params.get('departamento');
 
             if (!dept) {
-                updateStatus("ERRO", "Adicione ?departamento=NOME no final da URL");
+                updateStatus("ERRO", "Adicione ?departamento=NOME na URL");
                 return;
             }
             deptDisplay.textContent = dept;
@@ -78,21 +77,20 @@
                 const data = await response.json();
                 
                 if (Array.isArray(data) && data.length > 0) {
-                    // Só reinicia se a playlist mudou de tamanho ou se não estava tocando
+                    // Se a playlist mudou ou é a primeira vez
                     if (JSON.stringify(data) !== JSON.stringify(currentPlaylist)) {
                         currentPlaylist = data;
-                        if (!isPlaying) {
-                            overlay.style.display = 'none';
-                            startPlayback();
-                        }
+                        overlay.style.display = 'none';
+                        if (!isPlaying) startPlayback();
                     }
                 } else {
                     currentPlaylist = [];
                     overlay.style.display = 'flex';
                     updateStatus("Sem Mídia", `Nenhuma mídia ativa para ${dept}`);
+                    isPlaying = false;
                 }
             } catch (error) {
-                console.error(error);
+                console.error("Erro ao buscar playlist:", error);
             }
         }
 
@@ -104,33 +102,36 @@
 
         function showMedia() {
             if (timer) clearTimeout(timer);
+            if (currentPlaylist.length === 0) return;
+
             const item = currentPlaylist[currentIndex];
             container.innerHTML = ''; 
 
-            const el = item.tipo_arquivo === 'video' ? document.createElement('video') : document.createElement('img');
-            el.className = 'media-element active'; // Força a classe ativa imediatamente
-
+            let el;
             if (item.tipo_arquivo === 'video') {
+                el = document.createElement('video');
                 el.src = item.url_midia;
                 el.autoplay = true;
                 el.muted = true;
                 el.playsInline = true;
+                el.style.backgroundColor = "black";
                 el.onended = next;
                 el.onerror = () => { console.error("Erro no vídeo"); next(); };
             } else {
-                // Adiciona um timestamp para tentar burlar o bloqueio de cache do Drive
-                const separator = item.url_midia.includes('?') ? '&' : '?';
-                el.src = item.url_midia + separator + "cache=" + Date.now();
+                el = document.createElement('img');
+                // IMPORTANTE: Adiciona política de referenciamento para Dropbox/Drive
+                el.referrerPolicy = "no-referrer";
+                el.src = item.url_midia;
                 
-                // Se der erro na imagem, espera 3 segundos e pula para a próxima
                 el.onerror = () => {
-                    console.error("Erro ao carregar imagem:", item.url_midia);
-                    timer = setTimeout(next, 3000);
+                    console.error("Erro na imagem, pulando...");
+                    setTimeout(next, 2000);
                 };
                 
                 timer = setTimeout(next, 7000); 
             }
 
+            el.className = 'media-element active';
             container.appendChild(el);
         }
 
@@ -140,9 +141,9 @@
             showMedia();
         }
 
-        setInterval(fetchPlaylist, 60000);
+        // Loop de verificação
+        setInterval(fetchPlaylist, 30000);
         fetchPlaylist();
     </script>
 </body>
 </html>
-
