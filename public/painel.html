@@ -34,7 +34,7 @@
             <header class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-extrabold text-gray-800 border-b pb-2">Gestão de Mídia Indoor</h1>
-                    <p class="text-gray-500 mt-1 text-sm">Armazenamento via Google Drive & MongoDB</p>
+                    <p class="text-gray-500 mt-1 text-sm">Suporte: Google Drive & Dropbox</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <span id="user-info" class="text-sm text-gray-600"></span>
@@ -85,9 +85,9 @@
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 text-indigo-600 font-bold">URL do Google Drive</label>
-                            <input type="text" id="url_midia" required placeholder="Cole o link de compartilhamento aqui" class="mt-1 block w-full border-2 border-indigo-200 rounded-md shadow-sm p-2 bg-indigo-50">
-                            <p class="text-[10px] text-gray-500 mt-1">O arquivo deve estar como "Público/Qualquer pessoa com o link".</p>
+                            <label class="block text-sm font-medium text-indigo-600 font-bold">Link da Mídia (Dropbox ou Drive)</label>
+                            <input type="text" id="url_midia" required placeholder="Cole o link aqui" class="mt-1 block w-full border-2 border-indigo-200 rounded-md shadow-sm p-2 bg-indigo-50">
+                            <p class="text-[10px] text-gray-500 mt-1">Dica: No Dropbox, use o link que termina em dl=0. O sistema ajustará.</p>
                         </div>
                     </div>
 
@@ -122,8 +122,15 @@
         const API_BASE_URL = '/api';
         const PLAYLIST_API_URL = `${API_BASE_URL}/admin/playlist`;
 
-        // --- FUNÇÃO CORRIGIDA PARA GOOGLE DRIVE ---
-        function formatDriveUrl(url, tipo) {
+        // --- FUNÇÃO HÍBRIDA: CORRIGE DRIVE E DROPBOX ---
+        function formatMediaUrl(url, tipo) {
+            // Lógica para DROPBOX
+            if (url.includes('dropbox.com')) {
+                // Substitui qualquer final dl=0 ou dl=1 por raw=1 (Link Direto)
+                return url.replace(/dl=[01]/, 'raw=1');
+            }
+
+            // Lógica para GOOGLE DRIVE
             if (url.includes('drive.google.com')) {
                 const match = url.match(/\/d\/(.+?)\/|id=(.+?)(&|$)/);
                 const id = match ? (match[1] || match[2]) : null;
@@ -131,7 +138,7 @@
                     if (tipo === 'video') {
                         return `https://drive.google.com/uc?export=download&id=${id}`;
                     }
-                    // Formato thumbnail é muito mais estável para imagens em players
+                    // Imagem via Thumbnail (mais estável)
                     return `https://drive.google.com/thumbnail?authuser=0&sz=w1920&id=${id}`;
                 }
             }
@@ -201,7 +208,8 @@
             const tipo = document.getElementById('tipo_arquivo').value;
             const rawUrl = document.getElementById('url_midia').value;
             
-            const fixedUrl = formatDriveUrl(rawUrl, tipo);
+            // Agora usa a função híbrida
+            const fixedUrl = formatMediaUrl(rawUrl, tipo);
 
             const newItem = {
                 titulo: document.getElementById('titulo').value,
@@ -223,7 +231,7 @@
             });
 
             if (saveResp.ok) {
-                alert('Mídia agendada com sucesso!');
+                alert('Mídia salva e convertida com sucesso!');
                 loadPlaylists();
                 e.target.reset();
             }
@@ -243,7 +251,6 @@
             loadPlaylists();
         };
 
-        // Verifica sessão ao carregar
         fetch(`${API_BASE_URL}/auth/me`).then(r => {
             if(r.ok) {
                 loginOverlay.classList.add('hidden');
