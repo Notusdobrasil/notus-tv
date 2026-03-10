@@ -7,7 +7,7 @@
       "has": [
         {
           "type": "host",
-          "value": "painel.notus.ind.br"
+          "value": "(painel.notus.ind.br|notustv.notus.ind.br)"
         }
       ],
       "destination": "/painel.html"
