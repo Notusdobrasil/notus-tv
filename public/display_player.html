@@ -104,11 +104,9 @@
     if (timer) clearTimeout(timer);
     const item = currentPlaylist[currentIndex];
     
-    // 1. Criamos o elemento novo "escondido"
     const newEl = item.tipo_arquivo === 'video' ? document.createElement('video') : document.createElement('img');
-    
     newEl.style.opacity = "0";
-    newEl.style.transition = "opacity 0.8s ease-in-out"; // Efeito de 0.8 segundos
+    newEl.style.transition = "opacity 0.8s ease-in-out";
     newEl.className = 'media-element';
     newEl.style.display = "block";
 
@@ -119,39 +117,31 @@
         newEl.playsInline = true;
         
         newEl.oncanplaythrough = () => {
-            container.innerHTML = ''; // Limpa o antigo só quando o novo estiver pronto
+            container.innerHTML = '';
             container.appendChild(newEl);
             setTimeout(() => newEl.style.opacity = "1", 50);
         };
 
-        newEl.onended = next;
-        newEl.onerror = () => { console.error("Erro vídeo"); next(); };
+        // O VÍDEO RODA ATÉ O FIM (onended)
+        newEl.onended = next; 
+        newEl.onerror = () => next();
     } else {
-        // 2. Pré-carregamento da imagem
         const imgPreloader = new Image();
         imgPreloader.src = item.url_midia;
         
         imgPreloader.onload = () => {
             newEl.src = item.url_midia;
-            container.innerHTML = ''; // Remove a imagem antiga
+            container.innerHTML = '';
             container.appendChild(newEl);
-            
-            // 3. Aplica o efeito de Fade-in
-            setTimeout(() => {
-                newEl.style.opacity = "1";
-            }, 50);
+            setTimeout(() => newEl.style.opacity = "1", 50);
 
-            // Tempo de exibição (ex: 10 segundos para dar tempo de ver)
-            timer = setTimeout(next, 10000); 
+            // USA O TEMPO DO BANCO OU 10 SEGUNDOS SE ESTIVER VAZIO
+            const tempoDeExibicao = item.duracao_ms || 10000;
+            timer = setTimeout(next, tempoDeExibicao); 
         };
-
-        imgPreloader.onerror = () => {
-            console.error("Erro imagem");
-            next();
-        };
+        imgPreloader.onerror = () => next();
     }
 }
-
         function next() {
             if (currentPlaylist.length === 0) return;
             currentIndex = (currentIndex + 1) % currentPlaylist.length;
@@ -164,4 +154,5 @@
     </script>
 </body>
 </html>
+
 
